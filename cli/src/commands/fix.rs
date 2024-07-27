@@ -19,8 +19,8 @@ use std::process::Stdio;
 use std::sync::mpsc::channel;
 
 use futures::StreamExt;
+use futures::TryStreamExt;
 use itertools::Itertools;
-use jj_lib::backend::BackendError;
 use jj_lib::backend::CommitId;
 use jj_lib::backend::FileId;
 use jj_lib::backend::TreeValue;
@@ -28,14 +28,16 @@ use jj_lib::fileset;
 use jj_lib::fileset::FilesetExpression;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::matchers::Matcher;
+use jj_lib::merge::Merge;
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::merged_tree::MergedTreeBuilder;
-use jj_lib::merged_tree::TreeDiffEntry;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::repo_path::RepoPathUiConverter;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetIteratorExt;
 use jj_lib::store::Store;
+use jj_lib::tree::Tree;
 use pollster::FutureExt;
 use rayon::iter::IntoParallelIterator;
 use rayon::prelude::ParallelIterator;
@@ -125,6 +127,10 @@ pub(crate) struct FixArgs {
     /// Fix only these paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
+    /// Fix unchanged files in addition to changed ones. If no paths are
+    /// specified, all files in the repo will be fixed.
+    #[arg(long)]
+    include_unchanged_files: bool,
 }
 
 #[instrument(skip_all)]
@@ -185,39 +191,45 @@ pub(crate) fn cmd_fix(
             }
         }
 
-        // Also fix any new paths that were changed in this commit.
+        // There are four behaviors for the combinations of specifying or omitting the
+        // --include-unchanged-files flag or file arguments. The flag determines whether
+        // we diff the revision against its parents or just fix the entire tree. In
+        // either case, the file arguments filter that set of files.
         let tree = commit.tree()?;
-        let parent_tree = commit.parent_tree(tx.repo())?;
-        // TODO: handle copy tracking
-        let mut diff_stream = parent_tree.diff_stream(&tree, &matcher);
-        async {
-            while let Some(TreeDiffEntry {
-                path: repo_path,
-                values,
-            }) = diff_stream.next().await
-            {
-                let (_before, after) = values?;
-                // Deleted files have no file content to fix, and they have no terms in `after`,
-                // so we don't add any tool inputs for them. Conflicted files produce one tool
-                // input for each side of the conflict.
-                for term in after.into_iter().flatten() {
-                    // We currently only support fixing the content of normal files, so we skip
-                    // directories and symlinks, and we ignore the executable bit.
-                    if let TreeValue::File { id, executable: _ } = term {
-                        // TODO: Skip the file if its content is larger than some configured size,
-                        // preferably without actually reading it yet.
-                        let tool_input = ToolInput {
-                            file_id: id.clone(),
-                            repo_path: repo_path.clone(),
-                        };
-                        unique_tool_inputs.insert(tool_input.clone());
-                        paths.insert(repo_path.clone());
-                    }
+        let tree_values: Vec<(RepoPathBuf, Merge<Option<TreeValue>>)> =
+            if args.include_unchanged_files {
+                MergedTree::resolved(Tree::empty(tx.repo().store().clone(), RepoPathBuf::root()))
+            } else {
+                commit.parent_tree(tx.repo())?
+            }
+            .diff_stream(&tree, &matcher)
+            .map(|entry| {
+                // TODO: handle copy tracking by fixing all destination files, and only the
+                // source files that were otherwise modified. This will also need to extend to
+                // changed line computation once we support that.
+                entry.values.map(|(_before, after)| (entry.path, after))
+            })
+            .try_collect()
+            .block_on()?;
+        for (path, terms) in tree_values {
+            // Deleted files have no file content to fix, and they have no terms in `after`,
+            // so we don't add any tool inputs for them. Conflicted files produce one tool
+            // input for each side of the conflict.
+            for term in terms.into_iter().flatten() {
+                // We currently only support fixing the content of normal files, so we skip
+                // directories and symlinks, and we ignore the executable bit.
+                if let TreeValue::File { id, executable: _ } = term {
+                    // TODO: Skip the file if its content is larger than some configured size,
+                    // preferably without actually reading it yet.
+                    let tool_input = ToolInput {
+                        file_id: id.clone(),
+                        repo_path: path.clone(),
+                    };
+                    unique_tool_inputs.insert(tool_input.clone());
+                    paths.insert(tool_input.repo_path.clone());
                 }
             }
-            Ok::<(), BackendError>(())
         }
-        .block_on()?;
 
         commit_paths.insert(commit.id().clone(), paths);
     }
