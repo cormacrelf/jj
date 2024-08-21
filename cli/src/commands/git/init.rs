@@ -25,7 +25,7 @@ use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo::Repo;
 use jj_lib::workspace::Workspace;
 
-use crate::cli_util::print_trackable_remote_branches;
+use crate::cli_util::print_trackable_remote_bookmarks;
 use crate::cli_util::start_repo_transaction;
 use crate::cli_util::CommandHelper;
 use crate::command_error::cli_error;
@@ -183,7 +183,7 @@ pub fn do_init(
                     tx.finish(ui, "import git head")?;
                 }
             }
-            print_trackable_remote_branches(ui, workspace_command.repo().view())?;
+            print_trackable_remote_bookmarks(ui, workspace_command.repo().view())?;
         }
         GitInitMode::Internal => {
             Workspace::init_internal_git(command.settings(), workspace_root)?;
@@ -240,7 +240,7 @@ pub fn maybe_set_repository_level_trunk_alias(
     if let Ok(reference) = git_repo.find_reference("refs/remotes/origin/HEAD") {
         if let Some(reference_name) = reference.symbolic_target() {
             if let Some(RefName::RemoteBranch {
-                branch: default_branch,
+                bookmark: default_branch,
                 ..
             }) = parse_git_ref(reference_name)
             {

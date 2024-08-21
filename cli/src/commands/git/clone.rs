@@ -156,29 +156,29 @@ pub fn cmd_git_clone(
     }
 
     let (mut workspace_command, stats) = clone_result?;
-    if let Some(default_branch) = &stats.default_branch {
+    if let Some(default_bookmark) = &stats.default_bookmark {
         // Set repository level `trunk()` alias to the default remote branch.
         let config_path = workspace_command.repo().repo_path().join("config.toml");
         write_config_value_to_file(
             &ConfigNamePathBuf::from_iter(["revset-aliases", "trunk()"]),
-            format!("{default_branch}@{remote_name}").into(),
+            format!("{default_bookmark}@{remote_name}").into(),
             &config_path,
         )?;
         writeln!(
             ui.status(),
-            "Setting the revset alias \"trunk()\" to \"{default_branch}@{remote_name}\""
+            "Setting the revset alias \"trunk()\" to \"{default_bookmark}@{remote_name}\""
         )?;
 
         let default_branch_remote_ref = workspace_command
             .repo()
             .view()
-            .get_remote_branch(default_branch, remote_name);
+            .get_remote_bookmark(default_bookmark, remote_name);
         if let Some(commit_id) = default_branch_remote_ref.target.as_normal().cloned() {
             let mut checkout_tx = workspace_command.start_transaction();
             // For convenience, create local branch as Git would do.
             checkout_tx
                 .mut_repo()
-                .track_remote_branch(default_branch, remote_name);
+                .track_remote_bookmark(default_bookmark, remote_name);
             if let Ok(commit) = checkout_tx.repo().store().get_commit(&commit_id) {
                 checkout_tx.check_out(&commit)?;
             }

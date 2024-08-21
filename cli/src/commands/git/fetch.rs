@@ -41,8 +41,9 @@ pub struct GitFetchArgs {
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// expand `*` as a glob. The other wildcard characters aren't supported.
-    #[arg(long, short, default_value = "glob:*", value_parser = StringPattern::parse)]
-    branch: Vec<StringPattern>,
+    // TODO: Remove the branch alias in jj 0.27+
+    #[arg(long, short, default_value = "glob:*", value_parser = StringPattern::parse, alias = "branch")]
+    bookmark: Vec<StringPattern>,
     /// The remote to fetch from (only named remotes are supported, can be
     /// repeated)
     #[arg(long = "remote", value_name = "remote")]
@@ -74,7 +75,7 @@ pub fn cmd_git_fetch(
                 tx.mut_repo(),
                 &git_repo,
                 remote,
-                &args.branch,
+                &args.bookmark,
                 cb,
                 &command.settings().git_settings(),
             )
@@ -82,7 +83,7 @@ pub fn cmd_git_fetch(
         .map_err(|err| match err {
             GitFetchError::InvalidBranchPattern => {
                 if args
-                    .branch
+                    .bookmark
                     .iter()
                     .any(|pattern| pattern.as_exact().map_or(false, |s| s.contains('*')))
                 {

@@ -355,7 +355,7 @@ fn test_index_commits_hidden_but_referenced() {
     tx.mut_repo().remove_head(commit_a.id());
     tx.mut_repo().remove_head(commit_b.id());
     tx.mut_repo().remove_head(commit_c.id());
-    tx.mut_repo().set_remote_branch(
+    tx.mut_repo().set_remote_bookmark(
         "branch",
         "origin",
         RemoteRef {

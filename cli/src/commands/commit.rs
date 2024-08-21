@@ -67,7 +67,7 @@ pub(crate) fn cmd_commit(
     let matcher = workspace_command
         .parse_file_patterns(&args.paths)?
         .to_matcher();
-    let advanceable_branches = workspace_command.get_advanceable_branches(commit.parent_ids())?;
+    let advanceable_branches = workspace_command.get_advanceable_bookmarks(commit.parent_ids())?;
     let diff_selector =
         workspace_command.diff_selector(ui, args.tool.as_deref(), args.interactive)?;
     let mut tx = workspace_command.start_transaction();
@@ -135,7 +135,7 @@ new working-copy commit.
             .write()?;
 
         // Does nothing if there's no branches to advance.
-        tx.advance_branches(advanceable_branches, new_commit.id());
+        tx.advance_bookmarks(advanceable_branches, new_commit.id());
 
         for workspace_id in workspace_ids {
             tx.mut_repo().edit(workspace_id, &new_wc_commit).unwrap();

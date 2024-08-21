@@ -18,6 +18,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj untrack` has been renamed to `jj file untrack`.
 
+* `jj branch` has been deprecated in favor of `jj bookmark`.
+
+  **Rationale:** Jujutsu's branches don't behave like Git branches, which a 
+  confused many newcomers, as they expected a similar behavior given the name.
+  We've renamed them to "bookmarks" to match the actual behavior, as we think
+  that describes them better, and they also behave similar to Mercurial's 
+  bookmarks. 
+
 ### New features
 
 * Add new boolean config knob, `ui.movement.edit` for controlling the behaviour
