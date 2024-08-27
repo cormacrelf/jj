@@ -460,6 +460,8 @@ impl<'a> LockedWorkspace<'a> {
     }
 }
 
+/// Helps create a `Workspace` instance by reading `.jj/repo/` and
+/// `.jj/working_copy/` from the file system.
 #[derive(Clone, Debug)]
 pub struct WorkspaceLoader {
     workspace_root: PathBuf,
@@ -514,7 +516,8 @@ impl WorkspaceLoader {
         store_factories: &StoreFactories,
         working_copy_factories: &WorkingCopyFactories,
     ) -> Result<Workspace, WorkspaceLoadError> {
-        let repo_loader = RepoLoader::init(user_settings, &self.repo_dir, store_factories)?;
+        let repo_loader =
+            RepoLoader::init_from_file_system(user_settings, &self.repo_dir, store_factories)?;
         let working_copy = self.load_working_copy(repo_loader.store(), working_copy_factories)?;
         let workspace = Workspace::new(&self.workspace_root, working_copy, repo_loader)?;
         Ok(workspace)
