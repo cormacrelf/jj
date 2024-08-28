@@ -121,6 +121,7 @@ pub fn user_settings() -> UserSettings {
 pub struct TestRepo {
     _temp_dir: TempDir,
     pub repo: Arc<ReadonlyRepo>,
+    repo_path: PathBuf,
 }
 
 #[derive(PartialEq, Eq, Copy, Clone)]
@@ -181,6 +182,7 @@ impl TestRepo {
         Self {
             _temp_dir: temp_dir,
             repo,
+            repo_path: repo_dir,
         }
     }
 
@@ -198,12 +200,17 @@ impl TestRepo {
         );
         factories
     }
+
+    pub fn repo_path(&self) -> &Path {
+        &self.repo_path
+    }
 }
 
 pub struct TestWorkspace {
     temp_dir: TempDir,
     pub workspace: Workspace,
     pub repo: Arc<ReadonlyRepo>,
+    repo_path: PathBuf,
     settings: UserSettings,
 }
 
@@ -237,17 +244,23 @@ impl TestWorkspace {
             signer,
         )
         .unwrap();
+        let repo_path = workspace_root.join(".jj").join("repo");
 
         Self {
             temp_dir,
             workspace,
             repo,
+            repo_path,
             settings: settings.clone(),
         }
     }
 
     pub fn root_dir(&self) -> PathBuf {
         self.temp_dir.path().join("repo").join("..")
+    }
+
+    pub fn repo_path(&self) -> &Path {
+        &self.repo_path
     }
 
     /// Snapshots the working copy and returns the tree. Updates the working
