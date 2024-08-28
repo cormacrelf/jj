@@ -38,7 +38,12 @@ use `jj split` to do it if you didn't realize ahead of time how it should be
 split up. Include tests and documentation in the same commit as the code they
 test and document. The commit message should describe the changes in the commit;
 the PR description can even be empty, but feel free to include a personal
-message.
+message. We write commit messages in a affected component style and don't use 
+[conventional commits][www.conventionalcommits.org/en/v1.0.0/], this means if 
+you modified a command in the cli, use it's name as the component, e.g 
+`next/prev: <your-modification` or `conflicts: <your-modification>`. There is 
+no specific granularity to these, but see it as a _when in Rome_. do as the
+_Romans_ do rule, which keeps the project consistent.
 
 When you address comments on a PR, don't make the changes in a commit on top (as
 is typical on GitHub). Instead, please make the changes in the appropriate
